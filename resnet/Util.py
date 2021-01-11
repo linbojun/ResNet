@@ -1,116 +1,113 @@
 import tensorflow as tf
 import numpy as np
-"""
-class residual_block(tf.keras.layers.Layer):
-    def __init__(self, num_filters, downsample = False):
-        super(residual_block, self).__init__()
-
-        self.num_filters = num_filters
-        self.downsample = downsample
-        self.transform_layer = tf.keras.layers.Conv2D(filters = self.num_filters, kernel_size = 1, padding = 'same', strides = (2,2))
-        stride = (1, 1)
-        if self.downsample == True:
-            stride = (2, 2)
-
-        self.layer1 = tf.keras.layers.Conv2D(filters = self.num_filters, kernel_size = 3, 
-             padding="same", strides = stride)
-        self.layer2 = tf.keras.layers.Conv2D(filters = self.num_filters, kernel_size = 3, 
-             padding="same", strides = (1, 1))
-        
-    #@tf.function
-    def call(self, inputs):
-        token = self.layer1(inputs)
-        #mean, variance = tf.nn.moments(token, [0,1,2])
-        #token = tf.nn.batch_normalization(token, mean, variance, offset = None, scale = None, variance_epsilon = 1e-5)
-        token = batch_normal(token)
-        token = tf.nn.relu(token)
-
-        token = self.layer2(token)
-        #mean, variance = tf.nn.moments(token, [0,1,2])
-        #token = tf.nn.batch_normalization(token, mean, variance, offset = None, scale = None, variance_epsilon = 1e-5)
-        token = batch_normal(token)
-        if self.downsample == False:
-            token += inputs
-        else:
-            token += self.transform_layer(inputs)
-        token = tf.nn.relu(token)
-        return token
-
-"""
-"""
-class residual_block(tf.keras.layers.Layer):
-    def __init__(self, in_channel, out_channel, downsample = False):
-        super(residual_block, self).__init__()
-        self.in_channel = in_channel
-        self.out_channel = out_channel
-        self.downsample = downsample
-        self.transform_layer_filter = self.add_weight(name = "transform_layer_filter", shape=[1, 1, in_channel, out_channel], trainable=True)
-        #self.transform_layer = tf.keras.layers.Conv2D(filters = self.num_filters, kernel_size = 1, padding = 'same', strides = (2,2))
-
-        self.layer1_filter = self.add_weight(name = shape=[3, 3, in_channel, out_channel], trainable=True)
-        #self.layer1 = tf.keras.layers.Conv2D(filters = self.num_filters, kernel_size = 3, padding="same", strides = stride)
-        
-        self.layer2_filter = self.add_weight(shape = [3, 3, out_channel, out_channel], trainable = True)
-        #self.layer2 = tf.keras.layers.Conv2D(filters = self.num_filters, kernel_size = 3, padding="same", strides = (1, 1))
-        
-    #@tf.function
-    def call(self, inputs):
-        #print("------------------------------")
-        #print("num_in_channel:", self.in_channel,", num_out_channel", self.out_channel)
-        stride = (1 ,1)
-        if self.downsample == True:
-            stride = (2, 2)
-        token = tf.nn.conv2d(inputs, self.layer1_filter, strides = stride, padding = 'SAME')
-        #mean, variance = tf.nn.moments(token, [0,1,2])
-        #token = tf.nn.batch_normalization(token, mean, variance, offset = None, scale = None, variance_epsilon = 1e-5)
-        token = batch_normal(token)
-        token = tf.nn.relu(token)
-        #print("In residual_block, token after filter1: ", token.shape)
-
-        token = tf.nn.conv2d(token, self.layer2_filter, strides = (1,1), padding = 'SAME')
-        #mean, variance = tf.nn.moments(token, [0,1,2])
-        #token = tf.nn.batch_normalization(token, mean, variance, offset = None, scale = None, variance_epsilon = 1e-5)
-        token = batch_normal(token)
-        #print("In residual_block, token after filter2: ", token.shape)
-        if self.downsample == False:
-            token += inputs
-        else:
-            down_sample_inputs = batch_normal(tf.nn.conv2d(inputs, self.transform_layer_filter, strides = (2,2), padding = 'SAME'))
-            print("down_sample_inputs shape:", down_sample_inputs.shape)
-            token += down_sample_inputs
-        token = tf.nn.relu(token)
-        #print("output shape", token.shape)
-        return token
-"""
-
-def residual_block(inputs, num_filters):
-    token = tf.keras.layers.Conv2D(num_filters, kernel_size = 3, strides = (1, 1), padding = "same")(inputs)
-    token = tf.keras.layers.BatchNormalization()(token)
-    toke = tf.keras.layers.ReLU()(token)
-    token = tf.keras.layers.Conv2D(num_filters, kernel_size = 3, strides = (1, 1), padding = "same")(token)
-    token = tf.keras.layers.BatchNormalization()(token)
-    #add short cut 
-    token += inputs
-    token = tf.keras.layers.ReLU()(token)
-    return token
-
-def residual_block_downsample(inputs, num_filters):
-    token = tf.keras.layers.Conv2D(num_filters, kernel_size = 3, strides = (2, 2), padding = "same")(inputs)
-    token = tf.keras.layers.BatchNormalization()(token)
-    toke = tf.keras.layers.ReLU()(token)
-    token = tf.keras.layers.Conv2D(num_filters, kernel_size = 3, strides = (1, 1), padding = "same")(token)
-    token = tf.keras.layers.BatchNormalization()(token)
-
-    #short cut
-    short_cut = tf.keras.layers.Conv2D(num_filters, kernel_size = 1, strides = (2, 2), padding = "same")(inputs)
-    short_cut = tf.keras.layers.BatchNormalization()(short_cut)
-    token += short_cut
-    token = tf.keras.layers.ReLU()(token)
-    return token
+from matplotlib import pyplot as plt
 
 
-def batch_normal(token):
-    mean, variance = tf.nn.moments(token, [0,1,2])
-    token = tf.nn.batch_normalization(token, mean, variance, offset = None, scale = None, variance_epsilon = 1e-5)
-    return token
+import os
+import random
+import math
 
+
+
+def accuracy(logits, labels):
+    """
+    Calculates the model's prediction accuracy by comparing
+    logits to correct labels – no need to modify this.
+    :param logits: a matrix of size (num_inputs, self.num_classes); during training, this will be (batch_size, self.num_classes)
+    containing the result of multiple convolution and feed forward layers
+    :param labels: matrix of size (num_labels, self.num_classes) containing the answers, during training, this will be (batch_size, self.num_classes)
+
+    NOTE: DO NOT EDIT
+
+    :return: the accuracy of the model as a Tensor
+    """
+
+    #print("probs: ", probs)
+    #print("labels: ",labels )
+    #print("In accuracy(self, probs, labels): tf.argmax(probs, 1) = ", tf.argmax(probs, 1))
+
+    #correct_predictions = tf.equal(tf.argmax(logits, 1), labels)
+    #print("Util, accuracy: logits %s" % (logits))
+    #print("Util, accuracy: labels %s" % (labels))
+    correct_predictions = tf.equal(tf.argmax(logits, 1), tf.argmax(labels, 1))
+    #print("Util, accuracy: correct_predictions %s" % (correct_predictions))
+    return tf.reduce_mean(tf.cast(correct_predictions, tf.float32))
+
+def visualize_loss(losses):
+    """
+    Uses Matplotlib to visualize the losses of our model.
+    :param losses: list of loss data stored from train. Can use the model's loss_list
+    field
+
+    NOTE: DO NOT EDIT
+    return: doesn't return anything, a plot should pop-up
+    """
+    x = [i for i in range(len(losses))]
+    plt.plot(x, losses)
+    plt.title('Loss per batch')
+    plt.xlabel('Batch')
+    plt.ylabel('Loss')
+    plt.show()
+
+
+
+def test(model, test_inputs, test_labels):
+
+#    Tests the model on the test inputs and labels. You should NOT randomly
+#    flip images or do any extra preprocessing.
+#    :param test_inputs: test data (all images to be tested),
+#    shape (num_inputs, width, height, num_channels)
+#    :param test_labels: test labels (all corresponding labels),
+#    shape (num_labels, num_classes)
+#    :return: test accuracy - this should be the average accuracy across
+#    all batches
+
+
+    num_batch = int(test_labels.shape[0] / model.batch_size)
+    tot = 0.0
+    for i in range(num_batch):
+        image_batch = test_inputs[i*model.batch_size:(i+1)*model.batch_size]
+        label_batch = test_labels[i*model.batch_size:(i+1)*model.batch_size]
+        logits = model.call(image_batch)
+        accur = accuracy(logits,label_batch)
+        tot += accur
+    print(tot / num_batch)
+    return tot / num_batch
+
+
+
+def train(model, images, labels, save_path):
+    '''
+    :param images: (num_image, width, height, num_channels)
+    :param labels: (num_labels, num_class)
+    '''
+    n = images.shape[0]
+    indice = tf.range(n)
+    indice = tf.random.shuffle(indice)
+    labels = tf.gather(labels, indice)
+    images = tf.gather(images, indice)
+    images = tf.image.random_flip_left_right(images)
+    num_batch = int(n/model.batch_size)
+
+    for i in range(num_batch):
+    #for i in range(1):
+        print("batch ", i, "of ", num_batch)
+        start_pos = i * model.batch_size
+        end_pos = (i+1) * model.batch_size
+        image_batch = images[start_pos : end_pos]
+        label_batch = labels[start_pos : end_pos]
+        with tf.GradientTape() as tape:
+            #logits = model.call(image_batch)
+            predictions = model(image_batch, training = True)
+            loss_val = model.loss(predictions, label_batch)
+            #loss_val = model.loss(y_true=label_batch, y_pred=predictions)
+            print("loss: %s" % (loss_val))
+            print("__________________________")
+            # print("""loss: %s, \n logits: %s 
+            #     ===============""" % (loss_val, predictions))
+            model.loss_list.append(loss_val)
+        gradients = tape.gradient(loss_val, model.trainable_variables)
+        model.optimizer.apply_gradients(grads_and_vars=zip(gradients, model.trainable_variables))
+
+    model.save(save_path)
+    return

@@ -8,8 +8,8 @@ def unpickle(file):
 		dict = pickle.load(fo, encoding = 'bytes')
 	return dict
 
-"""
-def get_data(file_path):
+
+def get_full_data(file_path):
 	unpickle_file = unpickle(file_path)
 	inputs = unpickle_file[b'data']
 	labels  =unpickle_file[b'labels']
@@ -22,10 +22,12 @@ def get_data(file_path):
 	inputs = tf.transpose(inputs, perm=[0,2,3,1])
 	inputs = np.array(inputs, dtype = np.float32)
 
+	labels = tf.one_hot(labels, 10)
+
 	return inputs, labels
 
-"""
-def get_data(file_path, first_class, second_class):
+
+def get_part_data(file_path, first_class, second_class):
 	"""
 	Given a file path and two target classes, returns an array of
 	normalized inputs (images) and an array of labels.
@@ -67,6 +69,6 @@ def get_data(file_path, first_class, second_class):
 	inputs = tf.reshape(inputs, (-1, 3, 32, 32))
 	inputs = tf.transpose(inputs, perm = [0,2,3,1])
 	inputs = np.array(inputs, dtype = np.float32)
-	print("In get_data labels: ",labels)
+	print("In get_part_data labels: ",labels)
 
 	return inputs, labels
