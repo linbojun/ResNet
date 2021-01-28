@@ -17,7 +17,7 @@ class ResNet(tf.keras.Model):
         self.in_width = 32
         self.in_height = 32
         self.in_channels = 3
-        #self.optimizer = tf.keras.optimizers.Adadelta(learning_rate = 0.002, rho = 0.95)
+        #self.optimizer = tf.keras.optimizers.Adadelta(learning_rate = 0.0015, rho = 0.95)
         self.optimizer = tf.keras.optimizers.Adam(learning_rate = 0.0015)
         self.loss_list = []
 
